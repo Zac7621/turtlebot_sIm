@@ -2,6 +2,8 @@
 
 You need Ros melodic to run this simulaion, if you don't, read this to install (http://wiki.ros.org/melodic/Installation)
 
+You wil also need the gmapping package, if not installed during the ros installation, get it from your package manager or clone n your catkin/src repo from the source repository (https://github.com/ros-perception/slam_gmapping)
+
 
 Once installed properly, clone this git into your catkin repo, and execute catkin make to coompile all necessary nodes properly.
 Then, execute: source devel/setup.bash (Or put it in your .bashrc file)
