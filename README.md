@@ -10,7 +10,7 @@ Then, execute: source devel/setup.bash (Or put it in your .bashrc file)
 
 You are now ready to launch the simulation, to do so execute in a command line terminal:
 
-roslaunch turtlebot3_gazebo turtlebot3_world_teleop.launch
+roslaunch turtlebot3_gazebo turtlebot3_world_mux.launch
 
 Gazebo should launch the robot simulation and the world we selected.
 Rviz should launch as well allowing you to see all the topcis from the robot.
@@ -66,3 +66,16 @@ Enjoy the ride!!
 (End of Question 1 3h of work)
 
 
+The multiplexer node has been implemented in the launchfiles for easier use.
+
+The used node is the mux node from the topic_tools package.
+
+You can choose between cmd_local and cmd_web to send commands to the robot.
+
+To switch between the two use
+
+rosrun topic_tools mux_select mux_cmdvel [cmd_local or cmd_web]
+
+The node will select cmd_local by default.
+
+End of question 2 30 min.
