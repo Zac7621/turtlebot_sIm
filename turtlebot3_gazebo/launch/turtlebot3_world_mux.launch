@@ -42,8 +42,6 @@ s
 
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find turtlebot3_gazebo)/rviz/turtlebot3_gazebo_model.rviz"/>
 
-<!-- Launching the multiplexer -->
-
 <node pkg="topic_tools" type="mux" name="mux_cmdvel" args="cmd_vel cmd_local cmd_web mux:=mux_cmdvel"/>
 
 </launch>
