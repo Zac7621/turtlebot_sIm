@@ -81,4 +81,9 @@ s
   </node>
 
 
+<!-- Launching the multiplexer node -->
+
+<node pkg="topic_tools" type="mux" name="mux_cmdvel" args="cmd_vel cmd_local cmd_web mux:=mux_cmdvel"/>
+
+
 </launch>
