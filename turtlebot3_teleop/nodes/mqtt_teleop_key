@@ -1,0 +1,236 @@
+#!/usr/bin/env python
+
+# Copyright (c) 2011, Willow Garage, Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+#
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#    * Neither the name of the Willow Garage, Inc. nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#       this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+import paho.mqtt.client as mqtt
+import sys, select, os, json, time
+if os.name == 'nt':
+  import msvcrt
+else:
+  import tty, termios
+
+#Setup max velocities, step size for velocities change and the mqtt broker address
+
+BURGER_MAX_LIN_VEL = 0.22
+BURGER_MAX_ANG_VEL = 2.84
+
+LIN_VEL_STEP_SIZE = 0.01
+ANG_VEL_STEP_SIZE = 0.1
+
+broker_address="iot.eclipse.org"
+
+#Message to explain how to move the robot
+
+msg = """
+Control Your TurtleBot3!
+---------------------------
+Moving around:
+        z
+   q    s    d
+        x
+
+z/x : increase/decrease linear velocity ~ 0.22
+q/d : increase/decrease angular velocity ~ 2.84
+
+space key, s : force stop
+
+CTRL-C to quit
+"""
+
+e = """
+Communications Failed
+"""
+
+
+
+
+#Gets the pressed keys on keyboard
+def getKey():
+    if os.name == 'nt':
+	print('go')
+      	if sys.version_info[0] >= 3:
+        	return msvcrt.getch().decode()
+      	else:
+        	return msvcrt.getch()
+
+    tty.setraw(sys.stdin.fileno())
+    rlist, _, _ = select.select([sys.stdin], [], [], 0.1)
+    if rlist:
+        key = sys.stdin.read(1)
+    else:
+        key = ''
+
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+    return key
+
+#Return current velocities of the robot
+
+def vels(target_linear_vel, target_angular_vel):
+    return "currently:\tlinear vel %s\t angular vel %s " % (target_linear_vel,target_angular_vel)
+
+#Process the new velocity commands for the robot
+
+def makeSimpleProfile(output, input, slop):
+    if input > output:
+        output = min( input, output + slop )
+    elif input < output:
+        output = max( input, output - slop )
+    else:
+        output = input
+
+    return output
+
+
+#Set velocity to max or min if needed
+def constrain(input, low, high):
+    if input < low:
+      input = low
+    elif input > high:
+      input = high
+    else:
+      input = input
+
+    return input
+
+#Check if linear velocity is within range
+
+def checkLinearLimitVelocity(vel):
+    turtlebot3_model = "burger"
+    vel = constrain(vel, -BURGER_MAX_LIN_VEL, BURGER_MAX_LIN_VEL)
+
+
+    return vel
+
+#Check if angular velocity is within range
+def checkAngularLimitVelocity(vel):
+    turtlebot3_model = "burger"
+    vel = constrain(vel, -BURGER_MAX_ANG_VEL, BURGER_MAX_ANG_VEL)
+
+
+    return vel
+
+if __name__=="__main__":
+    if os.name != 'nt':
+        settings = termios.tcgetattr(sys.stdin)
+
+#Initialize velocities variables and mqtt client variables
+    status = 0
+    target_linear_vel   = 0.0
+    target_angular_vel  = 0.0
+    control_linear_vel  = 0.0
+    control_angular_vel = 0.0
+    client = mqtt.Client("MQTT ROS")
+    client.connect("mqtt.eclipseprojects.io", 1883, 60)
+
+
+    try:
+	print(msg)
+	while(1):
+	    key = getKey()
+
+#Checks if the pressed keys on keyboard match what we want to control the robot
+	    if key == 'z' :
+		target_linear_vel = checkLinearLimitVelocity(target_linear_vel + LIN_VEL_STEP_SIZE)
+		status = status + 1
+		print(vels(target_linear_vel,target_angular_vel))
+	    elif key == 'x' :
+		target_linear_vel = checkLinearLimitVelocity(target_linear_vel - LIN_VEL_STEP_SIZE)
+		status = status + 1
+		print(vels(target_linear_vel,target_angular_vel))
+	    elif key == 'q' :
+		target_angular_vel = checkAngularLimitVelocity(target_angular_vel + ANG_VEL_STEP_SIZE)
+		status = status + 1
+		print(vels(target_linear_vel,target_angular_vel))
+	    elif key == 'd' :
+		target_angular_vel = checkAngularLimitVelocity(target_angular_vel - ANG_VEL_STEP_SIZE)
+		status = status + 1
+		print(vels(target_linear_vel,target_angular_vel))
+	    elif key == ' ' or key == 's' :
+		target_linear_vel   = 0.0
+		control_linear_vel  = 0.0
+		target_angular_vel  = 0.0
+		control_angular_vel = 0.0
+		print(vels(target_linear_vel, target_angular_vel))
+	    else:
+		if (key == '\x03'):
+		    break
+
+	    if status == 20 :
+		print(msg)
+		status = 0
+
+#Update the robot commands
+
+	    control_linear_vel = makeSimpleProfile(control_linear_vel, target_linear_vel, (LIN_VEL_STEP_SIZE/2.0))
+
+
+	    control_angular_vel = makeSimpleProfile(control_angular_vel, target_angular_vel, (ANG_VEL_STEP_SIZE/2.0))
+
+#Bringing the wanted commands into a dict and dumping the dict into a json string to send in mqtt broker
+
+
+	    vel_out = {"lin_x" : control_linear_vel,
+			"lin_y" : 0,
+			"lin_z" : 0,
+			"ang_x" : 0,
+			"ang_y" : 0,
+			"ang_z" : control_angular_vel}
+
+	    data_vel  = json.dumps(vel_out)
+
+
+
+	    client.loop_start() #start the mqtt loop
+	    client.publish("cmd_ros",data_vel, qos=0) #publish the json to the wanted topic
+            client.loop_stop() #Stop the loop
+	    time.sleep(0.05) # wait (50 ms)
+
+    
+
+	    
+    except:
+        print(e)
+
+    finally:
+
+	#When we shut down the program we stop the robot
+	vel_out = {"lin_x" : 0,
+			"lin_y" : 0,
+			"lin_z" : 0,
+			"ang_x" : 0,
+			"ang_y" : 0,
+			"ang_z" : 0}
+	data_vel  = json.dumps(vel_out)
+	client.loop_start() #start the loop
+
+	client.subscribe("cmd_ros")
+	client.publish("cmd_ros",data_vel, qos=1) #Qos set to 1 to ensure reception of the stopping command
+        client.loop_stop() #start the loop
+
+    if os.name != 'nt':
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
