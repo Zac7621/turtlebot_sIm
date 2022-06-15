@@ -63,7 +63,7 @@ To perform autonomous navigation click the 2D nav goal and point your mouse wher
 
 Enjoy the ride!!
 
-(End of Question 1 3h of work)
+(End of Question 1 3h of work with testing and documentation)
 
 
 The multiplexer node has been implemented in the launchfiles for easier use.
@@ -78,4 +78,23 @@ rosrun topic_tools mux_select mux_cmdvel [cmd_local or cmd_web]
 
 The node will select cmd_local by default.
 
-End of question 2 30 min.
+End of question 2 30 min with testing and documentation.
+
+
+Mqtt "Remote" Teleoperation
+
+To make this feature I started from the teleoperation ros node that exists whithin the turtlebot package.
+
+I reused the function to gather data from the keyboard and created a dict to create the commands for the robot, and dumped this dict into a Json message to send it through the mqtt broker.
+
+In the ros node, the message is turned back into a dict from the mqtt callback, and published in the cmd_web topic for the robot.
+
+To run this simulation, run the mulitplexer simulation from question 1, then run from your home repository
+
+./catkin_ws/src/turtlebot3_simulations/turtlebot3_teleop/nodes/mqtt_teleop_key for the mqtt teleop program
+
+and 
+
+./catkin_ws/src/turtlebot3_simulations/turtlebot3_teleop/nodes/ros_mqtt_teleop_key for the ros node.
+
+End of question 3 (4h of work documentation and tests included)
